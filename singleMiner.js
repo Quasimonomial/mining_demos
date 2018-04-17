@@ -127,8 +127,6 @@ function Miner() {
     setInterval(function() {
       var block = that.blockChain[that.blockChain.length - 1];
 
-      systemLog.log(String(block.blockNumber))
-
       if (that.startingBlock == true) {
         systemLog.log('Mining on top of block ' + block.blockNumber);
       }
