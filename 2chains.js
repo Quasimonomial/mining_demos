@@ -39,7 +39,7 @@ var miningTable = grid.set(0, 4, 4, 8, contrib.table, {
       type: 'line'
     },
     columnSpacing: 10,
-    columnWidth: [26, 20, 20, 40],
+    columnWidth: [24, 10, 10, 10, 40],
     fg: 'yellow',
     interactive: false,
     label: 'Mining Rewards',
@@ -153,18 +153,50 @@ function Miner (options) {
 
     setInterval(this.strategy.bind(this), this.power)
   }
+
+  this.getStats = function () {
+    var myBlocks = 0;
+    var theirBlocks = 0;
+
+    for(var i = 0; i < this.blockChain.length; i++) {
+      if (this.blockChain.blocks[i].owner == this) {
+        miner1Blocks++;
+      } else if (this.blockChain.blocks[i].owner == this.otherMiners[0]){
+        miner2Blocks++;
+      }
+    }
+
+    var totalBlocks = myBlocks + theirBlocks;
+    var myPercentBlocks = totalBlocks === 0 ? 0 : Math.floor(100 * myBlocks / totalBlocks)
+    var thyPercentBlocks = totalBlocks === 0 ? 0 : Math.floor(100 * theirBlocks / totalBlocks)
+
+    return {
+      name: String(this.name),
+      myBlocks: String(myBlocks),
+      theirBlocks: String(theirBlocks),
+      myPercentBlocks: String(myPercentBlocks),
+      theirPercentBlocks: String(thyPercentBlocks),
+      totalBlocks: String(totalBlocks)
+    }
+  }
 }
 
 
 var honestStrategy = function () {
   var theirBlockHeight = 0;
-  var otherMiner = this.otherMiners[0];
+  var longestMiner = null;
 
-  this.logger.log('Our BLOCK HIEGHT ' + String(this.blockChain.blocks.length))
-  this.logger.log('Thy BLOCK HIEGHT ' + String(otherMiner.blockChain.blocks.length))
+  for(var i = 0; i < this.otherMiners.length; i++) {
+    if (this.otherMiners[i].blockChain.blocks.length > theirBlockHeight) {
+      longestMiner = this.otherMiners[i];
+      theirBlockHeight = this.otherMiners[i].blockChain.blocks.length;
+    }
+  }
 
-  if (otherMiner.blockChain.blocks.length > this.blockChain.blocks.length) {
-    var blocks = longestMiner.blockChain.blocks
+  this.logger.log('BLOCK HIEGHT ' + String(this.blockChain.blocks.length))
+
+  if (theirBlockHeight > this.blockChain.blocks.length) {
+    var blocks = longestMiner.blockChain.blocks.map(a => Object.assign({}, a));
     this.blockChain.replaceChain(blocks)
   }
   // First thing is to check to see if anyone's bockchain is longer than ours, and update with this if we can't; also reset nonce if that is the case
@@ -173,7 +205,7 @@ var honestStrategy = function () {
 
   this.logger.log('Attempting to mining on top of block ' + block.blockNumber);
 
-  this.logger.log('Attempting Nonce ' + this.nonce);
+  // this.logger.log('Attempting Nonce ' + this.nonce);
 
   var transactions = this.blockChain.generateTransactions()
   var blockText = block.hash + transactions + block.nonce;
@@ -197,6 +229,7 @@ var honestStrategy = function () {
   }
 
   screen.render();
+  updateTable();
 }
 
 
@@ -209,7 +242,7 @@ var genesisBlock = new Block({
 
 miner1 = new Miner({
   color: 'red',
-  power: 3000,
+  power: 1000,
   name: 'Miner 1',
   logger: miner1Log,
   strategy: honestStrategy,
@@ -223,7 +256,7 @@ miner1 = new Miner({
 
 miner2 = new Miner({
   color: 'blue',
-  power: 10000,
+  power: 3000,
   name: 'Miner 2',
   logger: miner2Log,
   strategy: honestStrategy,
@@ -243,36 +276,35 @@ screen.render()
 miner1.run()
 miner2.run()
 
-// this.updateTable = function () {
-//
-//   var miner1Blocks = 0;
-//   var miner2Blocks = 0;
-//
-//   for(var i = 0; i < this.blocks.length; i++) {
-//     if (this.blocks[i].owner == this.miners[0]) {
-//       miner1Blocks++;
-//     } else if (this.blocks[i].owner == this.miners[1]){
-//       miner2Blocks++;
-//     }
-//   }
-//
-//   if (this.blocks.length > 1) {
-//     miningTable.setData({
-//       headers: ['Miner', 'Blocks Won', '% Share', 'Runs every X milliseconds'],
-//       data: [
-//         ["{red-fg}" + this.miners[0].name, miner1Blocks, Math.floor(100 * miner1Blocks / this.blocks.slice(1).length) + '%', this.miners[0].power],
-//         ["{blue-fg}" + this.miners[1].name, miner2Blocks, Math.floor(100 * miner2Blocks / this.blocks.slice(1).length) + '%', this.miners[1].power]
-//       ]
-//     })
-//   } else {
-//     miningTable.setData({
-//       headers: ['Miner', 'Blocks Won', '% Share', 'Runs every X milliseconds'],
-//       data: [
-//         ["{red-fg}" + this.miners[0].name, String(0), String(0) + "%", this.miners[0].power],
-//         ["{blue-fg}" + this.miners[1].name, String(0), String(0) + "%", this.miners[1].power]
-//       ]
-//     })
-//   }
-//
-//   screen.render();
+
+
+// return {
+//   name: this.name,
+//   myBlocks: myBlocks,
+//   theirBlocks: theirBlocks,
+//   myPercentBlocks: myPercentBlocks,
+//   thyPercentBlocks: thyPercentBlocks,
+//   totalBlocks: totalBlocks
 // }
+var updateTable = function () {
+  var miner1Data = miner1.getStats();
+  var miner2Data = miner2.getStats();
+
+  miningTable.setData({
+    headers: ['Miner', 'Blocks Won', 'Total Blocks', '% Share', 'Runs every X milliseconds'],
+    data: [
+      ["{red-fg}Miner 1 Sees:"],
+      [miner1Data.name, miner1Data.myBlocks, miner1Data.totalBlocks, miner1Data.myPercentBlocks, String(miner1.power)],
+      [miner2.name, miner1Data.theirBlocks, miner1Data.totalBlocks, miner1Data.theirPercentBlocks, String(miner2.power)],
+      [],
+      [],
+      ["{blue-fg}Miner 2 Sees:"],
+      [miner1Data.name, miner1Data.theirBlocks, miner1Data.totalBlocks, miner1Data.theirPercentBlocks, String(miner1.power)],
+      [miner2.name, miner1Data.myBlocks, miner1Data.totalBlocks, miner1Data.myPercentBlocks, String(miner2.power)],
+    ]
+  })
+
+  screen.render();
+}
+
+updateTable()
