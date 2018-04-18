@@ -232,6 +232,56 @@ var honestStrategy = function () {
   updateTable();
 }
 
+var fiftyOnePercentAttack = function () {
+  var theirBlockHeight = 0;
+  var longestMiner = null;
+
+  for(var i = 0; i < this.otherMiners.length; i++) {
+    if (this.otherMiners[i].blockChain.blocks.length > theirBlockHeight) {
+      longestMiner = this.otherMiners[i];
+      theirBlockHeight = this.otherMiners[i].blockChain.blocks.length;
+    }
+  }
+
+  this.logger.log('BLOCK HIEGHT ' + String(this.blockChain.blocks.length))
+
+  if (theirBlockHeight > this.blockChain.blocks.length) {
+    this.logger.log('They have a higher Block Height than us')
+    this.logger.log('But we are faster, so ignore htem')
+  }
+  // First thing is to check to see if anyone's bockchain is longer than ours, and update with this if we can't; also reset nonce if that is the case
+  var block = this.blockChain.blocks[this.blockChain.blocks.length - 1];
+
+
+  this.logger.log('Attempting to mining on top of block ' + block.blockNumber);
+
+  // this.logger.log('Attempting Nonce ' + this.nonce);
+
+  var transactions = this.blockChain.generateTransactions()
+  var blockText = block.hash + transactions + block.nonce;
+  var newSha = crypto.createHmac('sha256', blockText).digest('hex').substring(0, 16);
+
+  this.logger.log('Trying Hash: ' + newSha);
+  block.nonce += 1
+
+  if (parseInt(newSha, 16) < parseInt(this.blockChain.difficulty, 16) ) {
+    this.logger.log('New Block Found!');
+    this.logger.log('');
+
+    var newBlock = new Block({
+      blockNumber: block.blockNumber + 1,
+      hash: newSha,
+      transactions: transactions,
+      owner: this,
+      color: this.color
+    });
+    this.blockChain.addNewBlock(newBlock)
+  }
+
+  screen.render();
+  updateTable();
+}
+
 
 var genesisBlock = new Block({
   blockNumber: 0,
@@ -245,7 +295,7 @@ miner1 = new Miner({
   power: 1000,
   name: 'Miner 1',
   logger: miner1Log,
-  strategy: honestStrategy,
+  strategy: fiftyOnePercentAttack,
   otherMiners: [],
   blockChain: new BlockChain({
     difficulty: "3FFFFFFFFFFFFFFF",
